@@ -1,0 +1,99 @@
+@page "/settings"
+@using Microsoft.AspNetCore.Components.Forms
+
+<PageTitle>Settings</PageTitle>
+
+<div class="st-wrap">
+
+    <div class="st-actions">
+        <button class="st-btn" @onclick="GoDashboard">🏠 Dashboard</button>
+        <button class="st-btn" @onclick="GoEntries">📚 Entries</button>
+        <button class="st-btn primary" @onclick="GoCalendar">📅 Calendar</button>
+    </div>
+
+    <h1>⚙️ Settings</h1>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="st-alert @(isSuccess ? "ok" : "bad")">@message</div>
+    }
+    @if (!string.IsNullOrEmpty(exportPath))
+    {
+        <div class="st-note">Export saved to: <code>@exportPath</code></div>
+    }
+
+    <!-- THEME -->
+    <div class="st-card">
+        <h2>Theme</h2>
+
+        <label>
+            <input type="radio" checked="@(settings?.Theme == "Light")"
+                   @onchange="@(() => ChangeTheme("Light"))" />
+            ☀️ Light
+        </label>
+
+        <label>
+            <input type="radio" checked="@(settings?.Theme == "Dark")"
+                   @onchange="@(() => ChangeTheme("Dark"))" />
+            🌙 Dark
+        </label>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="st-card">
+        <h2>Security</h2>
+
+        @if (settings?.IsPasswordProtected == true)
+        {
+            <EditForm Model="passwordModel" OnValidSubmit="ChangePassword">
+                <InputText type="password" @bind-Value="passwordModel.CurrentPassword" placeholder="Current password" />
+                <InputText type="password" @bind-Value="passwordModel.NewPassword" placeholder="New password" />
+                <InputText type="password" @bind-Value="passwordModel.ConfirmPassword" placeholder="Confirm password" />
+                <button class="st-btn primary">Change Password</button>
+                <button type="button" class="st-btn danger" @onclick="RemovePassword">Remove Password</button>
+            </EditForm>
+        }
+        else
+        {
+            <EditForm Model="passwordModel" OnValidSubmit="SetPassword">
+                <InputText type="password" @bind-Value="passwordModel.NewPassword" placeholder="Password" />
+                <InputText type="password" @bind-Value="passwordModel.ConfirmPassword" placeholder="Confirm password" />
+                <button class="st-btn primary">Enable Password</button>
+            </EditForm>
+        }
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="st-card">
+        <h2>Display</h2>
+        <InputNumber @bind-Value="entriesPerPage" />
+        <button class="st-btn primary" @onclick="UpdatePagination">Save</button>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="st-card">
+        <h2>Export</h2>
+        <input type="date" @bind="exportStartDate" />
+        <input type="date" @bind="exportEndDate" />
+        <button class="st-btn" @onclick="ExportToPdf">Export PDF</button>
+    </div>
+
+    @code {
+        private void GoDashboard() => Navigation.NavigateTo("/");
+        private void GoEntries() => Navigation.NavigateTo("/entries");
+        private void GoCalendar() => Navigation.NavigateTo("/calendar");
+    }
+
+    <style>
+        .st-wrap { max-width: 900px; margin: auto; padding: 20px; }
+        .st-actions { display: flex; gap: 10px; margin-bottom: 20px; }
+        .st-btn { padding: 8px 14px; font-weight: bold; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; }
+        .primary { background: var(--primary-color); color: white; border-color: transparent; }
+        .danger { background: var(--danger-color); color: white; border-color: transparent; }
+        .st-card { margin: 20px 0; padding: 15px; border: 1px solid var(--border-color); background: var(--card-bg); border-radius: 6px; }
+        .st-alert.ok { color: var(--success-color); }
+        .st-alert.bad { color: var(--danger-color); }
+        .st-note { margin-top: 8px; color: var(--text-muted); }
+    </style>
+
+</div>

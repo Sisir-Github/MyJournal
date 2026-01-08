@@ -1,0 +1,302 @@
+@page "/create-entry"
+@page "/edit-entry/{EntryId:int}"
+@using JournalApp.Services
+@using JournalApp.Models
+@using Microsoft.AspNetCore.Components
+@inject JournalService JournalService
+@inject NavigationManager Navigation
+
+<PageTitle>@(IsEditMode ? "Edit Entry" : "Create Entry") - Journal App</PageTitle>
+
+<div class="ce-wrap">
+    <!-- Top Bar -->
+    <div class="ce-top">
+        <div class="ce-titleblock">
+            <div class="ce-badge">@((IsEditMode) ? "EDIT" : "NEW")</div>
+            <h1 class="ce-title">@((IsEditMode) ? "✏️ Edit Entry" : "✍️ Create New Entry")</h1>
+            <p class="ce-sub">Write clearly. Track mood. Add tags for quick search.</p>
+        </div>
+
+        <div class="ce-top-actions">
+            <button type="button" class="ce-btn ghost" @onclick="Cancel">← Back</button>
+            @if (IsEditMode)
+            {
+                <button type="button" class="ce-btn danger" @onclick="DeleteEntry">🗑️ Delete</button>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="ce-alert @(isSuccess ? "ok" : "bad")">
+            <span class="ce-alert-icon">@((isSuccess) ? "✅" : "⚠️")</span>
+            <div class="ce-alert-text">@message</div>
+        </div>
+    }
+
+    <!-- Main Layout -->
+    <div class="ce-layout">
+        <!-- Form Card -->
+        <div class="ce-card">
+            <EditForm Model="@entry" OnValidSubmit="HandleValidSubmit" OnInvalidSubmit="HandleInvalidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <!-- Title + Date -->
+                <div class="ce-grid2">
+                    <div class="ce-field">
+                        <label for="title" class="ce-label">Title <span class="req">*</span></label>
+                        <InputText id="title"
+                                   @bind-Value="entry.Title"
+                                   class="ce-input"
+                                   placeholder="Enter entry title" />
+                        <div class="ce-hint">Make it short but meaningful.</div>
+                    </div>
+
+                    <div class="ce-field">
+                        <label for="dateField" class="ce-label">Date <span class="req">*</span></label>
+                        <InputDate id="dateField"
+                                   @bind-Value="entry.EntryDate"
+                                   class="ce-input" />
+                        <div class="ce-hint">Pick the day you want this entry saved for.</div>
+                    </div>
+                </div>
+
+                <!-- Content -->
+                <div class="ce-field">
+                    <div class="ce-label-row">
+                        <label for="content" class="ce-label">Content <span class="req">*</span></label>
+                        <div class="ce-counter">Word count: <b>@CalculateWordCount(entry.Content)</b></div>
+                    </div>
+
+                    <InputTextArea id="content"
+                                   @bind-Value="entry.Content"
+                                   class="ce-textarea"
+                                   rows="10"
+                                   placeholder="Write your thoughts here..." />
+
+                    <div class="ce-hint">Tip: Use paragraphs. Keep it simple.</div>
+                </div>
+
+                <!-- Moods -->
+                <div class="ce-section">
+                    <div class="ce-section-title">Mood</div>
+                    <div class="ce-grid3">
+                        <div class="ce-field">
+                            <label for="primaryMood" class="ce-label">Primary Mood <span class="req">*</span></label>
+                            <InputSelect id="primaryMood"
+                                         @bind-Value="entry.PrimaryMood"
+                                         class="ce-input"
+                                         @onchange="OnPrimaryMoodChanged">
+                                <option value="">-- Select a mood --</option>
+                                @foreach (var mood in MoodDefinitions.GetAllMoods())
+                                {
+                                    <option value="@mood">@mood</option>
+                                }
+                            </InputSelect>
+                            <div class="ce-hint">Main mood of the day.</div>
+                        </div>
+
+                        <div class="ce-field">
+                            <label for="secondaryMood1" class="ce-label">Secondary Mood 1</label>
+                            <InputSelect id="secondaryMood1"
+                                         @bind-Value="secondaryMood1Temp"
+                                         class="ce-input"
+                                         @onchange="OnSecondaryMood1Changed">
+                                <option value="">-- None --</option>
+                                @foreach (var mood in MoodDefinitions.GetAllMoods())
+                                {
+                                    <option value="@mood">@mood</option>
+                                }
+                            </InputSelect>
+                            <div class="ce-hint">Optional.</div>
+                        </div>
+
+                        <div class="ce-field">
+                            <label for="secondaryMood2" class="ce-label">Secondary Mood 2</label>
+                            <InputSelect id="secondaryMood2"
+                                         @bind-Value="secondaryMood2Temp"
+                                         class="ce-input"
+                                         @onchange="OnSecondaryMood2Changed">
+                                <option value="">-- None --</option>
+                                @foreach (var mood in MoodDefinitions.GetAllMoods())
+                                {
+                                    <option value="@mood">@mood</option>
+                                }
+                            </InputSelect>
+                            <div class="ce-hint">Optional.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tags -->
+                <div class="ce-section">
+                    <div class="ce-section-title">Tags</div>
+
+                    <div class="ce-field">
+                        <label for="tags" class="ce-label">Tags (comma-separated)</label>
+                        <InputText id="tags"
+                                   @bind-Value="entry.Tags"
+                                   class="ce-input"
+                                   placeholder="e.g., Work, Health, Travel" />
+                        <div class="ce-hint">Use comma to separate tags.</div>
+                    </div>
+
+                    <div class="ce-suggest">
+                        <div class="ce-suggest-title">Suggested</div>
+                        <div class="ce-chip-wrap">
+                            @foreach (var tag in TagDefinitions.GetAllPreBuiltTags().Take(10))
+                            {
+                                <button type="button" class="ce-chip" @onclick="() => AddTag(tag)">
+                                    + @tag
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="ce-actions">
+                    <button type="submit" class="ce-btn primary">
+                        @((IsEditMode) ? "Update Entry" : "Save Entry")
+                    </button>
+
+                    <button type="button" class="ce-btn" @onclick="Cancel">
+                        Cancel
+                    </button>
+
+                    @if (IsEditMode)
+                    {
+                        <button type="button" class="ce-btn danger" @onclick="DeleteEntry">
+                            Delete Entry
+                        </button>
+                    }
+                </div>
+            </EditForm>
+        </div>
+
+        <!-- Right Side: Helper Card -->
+        <div class="ce-card ce-side">
+            <div class="ce-side-title">Quick tips</div>
+
+            <div class="ce-tip">
+                <div class="ce-tip-emoji">🧠</div>
+                <div>
+                    <div class="ce-tip-title">Be specific</div>
+                    <div class="ce-tip-sub">Describe what happened and how you felt.</div>
+                </div>
+            </div>
+
+            <div class="ce-tip">
+                <div class="ce-tip-emoji">🏷️</div>
+                <div>
+                    <div class="ce-tip-title">Use tags</div>
+                    <div class="ce-tip-sub">Tags help you find entries later quickly.</div>
+                </div>
+            </div>
+
+            <div class="ce-tip">
+                <div class="ce-tip-emoji">📅</div>
+                <div>
+                    <div class="ce-tip-title">Correct date</div>
+                    <div class="ce-tip-sub">Save entries to the day they actually happened.</div>
+                </div>
+            </div>
+
+            <div class="ce-divider"></div>
+
+            <div class="ce-mini">
+                <div class="ce-mini-label">Mode</div>
+                <div class="ce-mini-value">@((IsEditMode) ? "Editing an existing entry" : "Creating a new entry")</div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .ce-wrap{padding:16px;max-width:1100px;margin:0 auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+        .ce-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+        .ce-titleblock{max-width:700px;}
+        .ce-badge{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900;letter-spacing:0.6px;background:var(--chip-bg);border:1px solid var(--panel-border);margin-bottom:8px;}
+        .ce-title{margin:0;font-size:28px;font-weight:900;letter-spacing:-0.6px;}
+        .ce-sub{margin:6px 0 0;opacity:0.75;font-size:13px;}
+        .ce-top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+
+        .ce-alert{display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:14px;border:1px solid var(--panel-border);margin-bottom:12px;background:var(--panel-bg);box-shadow:var(--panel-shadow);}
+        .ce-alert.ok{border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.08);}
+        .ce-alert.bad{border-color:rgba(239,68,68,0.35);background:rgba(239,68,68,0.08);}
+        .ce-alert-icon{font-size:18px;}
+        .ce-alert-text{font-weight:700;opacity:0.9;}
+
+        .ce-layout{display:grid;grid-template-columns:1.2fr 0.8fr;gap:12px;align-items:start;}
+        .ce-card{border-radius:18px;border:1px solid var(--panel-border);background:var(--panel-bg);box-shadow:var(--panel-shadow);padding:14px;}
+        .ce-side{position:sticky;top:12px;}
+        .ce-side-title{font-weight:900;font-size:16px;margin-bottom:10px;}
+        .ce-divider{height:1px;background:var(--border-color);margin:12px 0;}
+        .ce-mini{margin-top:8px;}
+        .ce-mini-label{font-size:12px;opacity:0.7;font-weight:800;}
+        .ce-mini-value{margin-top:4px;font-weight:900;}
+
+        .ce-tip{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:14px;border:1px solid var(--soft-border);background:var(--soft-bg);margin-bottom:10px;}
+        .ce-tip-emoji{font-size:20px;width:28px;text-align:center;}
+        .ce-tip-title{font-weight:900;}
+        .ce-tip-sub{opacity:0.75;font-size:13px;margin-top:2px;}
+
+        .ce-grid2{display:grid;grid-template-columns:1fr 240px;gap:12px;}
+        .ce-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+
+        .ce-field{margin-bottom:12px;}
+        .ce-label{display:block;font-size:13px;font-weight:900;margin-bottom:6px;}
+        .req{color:rgba(239,68,68,0.95);}
+
+        .ce-label-row{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+        .ce-counter{font-size:12px;opacity:0.75;font-weight:800;}
+
+        .ce-input{width:100%;height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--input-border-soft);background:var(--input-bg-soft);outline:none;font-weight:700;color:var(--text-color);}
+        .ce-textarea{width:100%;padding:12px;border-radius:14px;border:1px solid var(--input-border-soft);background:var(--input-bg-soft);outline:none;font-weight:650;line-height:1.45;resize:vertical;color:var(--text-color);}
+        .ce-hint{margin-top:6px;font-size:12px;opacity:0.70;}
+
+        .ce-section{margin-top:8px;padding-top:10px;border-top:1px solid var(--border-color);}
+        .ce-section-title{font-weight:900;margin-bottom:10px;font-size:14px;opacity:0.85;}
+
+        .ce-suggest{margin-top:10px;padding:10px;border-radius:14px;border:1px solid var(--soft-border);background:var(--soft-bg);}
+        .ce-suggest-title{font-size:12px;font-weight:900;opacity:0.75;margin-bottom:8px;}
+        .ce-chip-wrap{display:flex;flex-wrap:wrap;gap:8px;}
+        .ce-chip{border:1px solid var(--panel-border);background:var(--chip-bg);border-radius:999px;padding:8px 10px;font-weight:900;font-size:12px;cursor:pointer;color:var(--text-color);}
+
+        .ce-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--border-color);margin-top:10px;}
+        .ce-btn{height:38px;padding:0 14px;border-radius:12px;border:1px solid var(--panel-border);background:var(--chip-bg);font-weight:900;cursor:pointer;color:var(--text-color);}
+        .ce-btn.primary{background:var(--button-bg);color:var(--button-text);border-color:var(--button-bg);}
+        .ce-btn.danger{background:rgba(239,68,68,0.14);border-color:rgba(239,68,68,0.30);}
+        .ce-btn.ghost{background:transparent;}
+    </style>
+</div>
+
+@code {
+    // Reads query string: /create-entry?date=2026-01-07
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? date { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // If already on /edit-entry/{EntryId}, don't redirect
+        if (IsEditMode) return;
+
+        // Date from query string or today
+        var targetDate = DateTime.Today;
+        if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
+            targetDate = parsed.Date;
+
+        // show correct date in form
+        entry.EntryDate = targetDate;
+
+        // If entry exists, redirect to edit page
+        var existing = await JournalService.GetEntryByDateAsync(targetDate);
+        if (existing != null)
+        {
+            message = "An entry already exists for this date. Redirecting to edit...";
+            isSuccess = false;
+
+            Navigation.NavigateTo($"/edit-entry/{existing.Id}", forceLoad: true);
+        }
+    }
+}

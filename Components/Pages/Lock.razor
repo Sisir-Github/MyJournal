@@ -1,0 +1,45 @@
+@page "/lock"
+@using JournalApp.Services
+@inject SettingsService SettingsService
+@inject LockState LockState
+@inject NavigationManager Navigation
+
+<PageTitle>Locked</PageTitle>
+
+<div style="max-width:400px;margin:100px auto;text-align:center;color:var(--text-color);">
+    <h1>🔒 Journal Locked</h1>
+    <p>Please enter your password to unlock</p>
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <p style="color:var(--danger-color);font-weight:bold;">@error</p>
+    }
+
+    <input type="password"
+           placeholder="Password"
+           @bind="password"
+           style="width:100%;padding:10px;margin:10px 0;border-radius:10px;border:1px solid var(--input-border-soft);background:var(--input-bg-soft);color:var(--text-color);" />
+
+    <button @onclick="Unlock"
+            style="width:100%;padding:10px;font-weight:bold;border-radius:10px;border:1px solid var(--button-bg);background:var(--button-bg);color:var(--button-text);">
+        Unlock
+    </button>
+</div>
+
+@code {
+    private string password = "";
+    private string error = "";
+
+    private async Task Unlock()
+    {
+        if (await SettingsService.VerifyPasswordAsync(password))
+        {
+            LockState.Unlock();
+            Navigation.NavigateTo("/", true);
+        }
+        else
+        {
+            error = "Incorrect password";
+        }
+    }
+}

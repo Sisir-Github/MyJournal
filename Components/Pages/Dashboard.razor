@@ -1,0 +1,401 @@
+@page "/"
+@using JournalApp.Services
+@using JournalApp.Data
+@inject AnalyticsService AnalyticsService
+@inject JournalService JournalService
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard - Journal App</PageTitle>
+
+<div class="db-wrap">
+
+    <!-- Top Header -->
+    <div class="db-top">
+        <div class="db-brand">
+            <div class="db-logo">📓</div>
+            <div>
+                <div class="db-title">Dashboard</div>
+                <div class="db-sub">Track your moods, streak, and journaling progress</div>
+            </div>
+        </div>
+
+        <div class="db-actions">
+            <button class="db-btn primary" @onclick="GoCreate">✍️ New Entry</button>
+            <button class="db-btn" @onclick="GoCalendar">📅 Calendar</button>
+            <button class="db-btn" @onclick="GoEntries">📚 Entries</button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="db-loading">
+            <div class="db-spinner"></div>
+            <div>
+                <div class="db-loading-title">Loading</div>
+                <div class="db-loading-sub">Getting your dashboard ready…</div>
+            </div>
+        </div>
+    }
+    else if (analytics != null)
+    {
+        <div class="db-grid">
+            <!-- Left: Stats + Sections -->
+            <div class="db-left">
+                <!-- Quick Stats -->
+                <div class="db-stats">
+                    <div class="db-stat">
+                        <div class="db-stat-top">
+                            <div class="db-stat-icon">📝</div>
+                            <div class="db-stat-title">Total Entries</div>
+                        </div>
+                        <div class="db-stat-number">@analytics.TotalEntries</div>
+                        <div class="db-stat-sub">Journal Entries</div>
+                    </div>
+
+                    <div class="db-stat">
+                        <div class="db-stat-top">
+                            <div class="db-stat-icon">🔥</div>
+                            <div class="db-stat-title">Current Streak</div>
+                        </div>
+                        <div class="db-stat-number">@analytics.CurrentStreak</div>
+                        <div class="db-stat-sub">Days in a row</div>
+                    </div>
+
+                    <div class="db-stat">
+                        <div class="db-stat-top">
+                            <div class="db-stat-icon">🏆</div>
+                            <div class="db-stat-title">Longest Streak</div>
+                        </div>
+                        <div class="db-stat-number">@analytics.LongestStreak</div>
+                        <div class="db-stat-sub">Best record</div>
+                    </div>
+
+                    <div class="db-stat">
+                        <div class="db-stat-top">
+                            <div class="db-stat-icon">📊</div>
+                            <div class="db-stat-title">Average Words</div>
+                        </div>
+                        <div class="db-stat-number">@analytics.AverageWordCount</div>
+                        <div class="db-stat-sub">Per entry</div>
+                    </div>
+                </div>
+
+                <!-- Mood Distribution -->
+                <div class="db-card">
+                    <div class="db-card-head">
+                        <div class="db-card-title">Mood Distribution</div>
+                        <div class="db-card-sub">How your journal days feel overall</div>
+                    </div>
+
+                    <div class="db-moods">
+                        <div class="db-mood positive">
+                            <div class="db-mood-left">
+                                <div class="db-mood-emoji">😊</div>
+                                <div>
+                                    <div class="db-mood-name">Positive</div>
+                                    <div class="db-mood-count">@analytics.PositiveMoodCount entries</div>
+                                </div>
+                            </div>
+                            <div class="db-mood-right">
+                                <div class="db-mood-pct">@analytics.PositiveMoodPercentage%</div>
+                                <div class="db-bar"><div class="db-bar-fill positive" style="width:@($"{analytics.PositiveMoodPercentage}%")"></div></div>
+                            </div>
+                        </div>
+
+                        <div class="db-mood neutral">
+                            <div class="db-mood-left">
+                                <div class="db-mood-emoji">😐</div>
+                                <div>
+                                    <div class="db-mood-name">Neutral</div>
+                                    <div class="db-mood-count">@analytics.NeutralMoodCount entries</div>
+                                </div>
+                            </div>
+                            <div class="db-mood-right">
+                                <div class="db-mood-pct">@analytics.NeutralMoodPercentage%</div>
+                                <div class="db-bar"><div class="db-bar-fill neutral" style="width:@($"{analytics.NeutralMoodPercentage}%")"></div></div>
+                            </div>
+                        </div>
+
+                        <div class="db-mood negative">
+                            <div class="db-mood-left">
+                                <div class="db-mood-emoji">😔</div>
+                                <div>
+                                    <div class="db-mood-name">Negative</div>
+                                    <div class="db-mood-count">@analytics.NegativeMoodCount entries</div>
+                                </div>
+                            </div>
+                            <div class="db-mood-right">
+                                <div class="db-mood-pct">@analytics.NegativeMoodPercentage%</div>
+                                <div class="db-bar"><div class="db-bar-fill negative" style="width:@($"{analytics.NegativeMoodPercentage}%")"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Most Frequent Mood -->
+                @if (!string.IsNullOrEmpty(analytics.MostFrequentMood))
+                {
+                    <div class="db-card">
+                        <div class="db-card-head">
+                            <div class="db-card-title">Most Frequent Mood</div>
+                            <div class="db-card-sub">Your most common vibe</div>
+                        </div>
+
+                        <div class="db-highlight">
+                            <div class="db-highlight-left">
+                                <div class="db-highlight-emoji">⭐</div>
+                                <div>
+                                    <div class="db-highlight-title">@analytics.MostFrequentMood</div>
+                                    <div class="db-highlight-sub">@analytics.MostFrequentMoodCount times</div>
+                                </div>
+                            </div>
+                            <button class="db-btn" @onclick="GoAnalytics">View Analytics</button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Top Tags -->
+                @if (analytics.TagUsageCount.Any())
+                {
+                    <div class="db-card">
+                        <div class="db-card-head">
+                            <div class="db-card-title">Top Tags</div>
+                            <div class="db-card-sub">Most used tags in your journal</div>
+                        </div>
+
+                        <div class="db-tags">
+                            @foreach (var tag in analytics.TagUsageCount.Take(10))
+                            {
+                                <span class="db-tag">@tag.Key <span class="db-tag-count">@tag.Value</span></span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Right: Recent Entries -->
+            <div class="db-right">
+                <div class="db-card">
+                    <div class="db-card-head">
+                        <div class="db-card-title">Recent Entries</div>
+                        <div class="db-card-sub">Quickly jump back into your latest writing</div>
+                    </div>
+
+                    @if (recentEntries.Any())
+                    {
+                        <div class="db-recent">
+                            @foreach (var entry in recentEntries)
+                            {
+                                <button type="button" class="db-entry" @onclick="() => ViewEntry(entry.Id)">
+                                    <div class="db-entry-left">
+                                        <div class="db-entry-title">@entry.Title</div>
+                                        <div class="db-entry-meta">
+                                            <span>📅 @entry.EntryDate.ToString("MMM dd, yyyy")</span>
+                                            <span>•</span>
+                                            <span>🙂 @entry.PrimaryMood</span>
+                                        </div>
+                                    </div>
+                                    <div class="db-entry-arrow">›</div>
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="db-empty">
+                            <div class="db-empty-emoji">📝</div>
+                            <div class="db-empty-title">No entries yet</div>
+                            <div class="db-empty-sub">Create your first entry to see dashboard insights.</div>
+                            <button class="db-btn primary" @onclick="GoCreate">✍️ Create your first entry</button>
+                        </div>
+                    }
+                </div>
+
+                <!-- Quick Links -->
+                <div class="db-card">
+                    <div class="db-card-head">
+                        <div class="db-card-title">Quick Links</div>
+                        <div class="db-card-sub">Common actions</div>
+                    </div>
+
+                    <div class="db-links">
+                        <button class="db-link" @onclick="GoCreate">✍️ Create Entry</button>
+                        <button class="db-link" @onclick="GoCalendar">📅 Calendar</button>
+                        <button class="db-link" @onclick="GoEntries">📚 View Entries</button>
+                        <button class="db-link" @onclick="GoAnalytics">📈 Analytics</button>
+                        <button class="db-link" @onclick="GoSettings">⚙️ Settings</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <style>
+        .db-wrap{
+            padding:16px;
+            max-width:1200px;
+            margin:0 auto;
+            font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+        }
+
+        .db-top{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-bottom:14px;
+        }
+
+        .db-brand{display:flex;align-items:center;gap:10px;}
+        .db-logo{
+            width:40px;height:40px;border-radius:14px;
+            display:flex;align-items:center;justify-content:center;
+            background:var(--button-bg);color:var(--button-text);font-weight:900;
+            box-shadow:var(--panel-shadow);
+        }
+        .db-title{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
+        .db-sub{opacity:0.75;font-size:13px;margin-top:2px;}
+
+        .db-actions{display:flex;gap:10px;flex-wrap:wrap;}
+        .db-btn{
+            height:38px;padding:0 14px;border-radius:12px;
+            border:1px solid var(--panel-border);
+            background:var(--chip-bg);
+            font-weight:900;cursor:pointer;
+            color:var(--text-color);
+        }
+        .db-btn.primary{background:var(--button-bg);color:var(--button-text);border-color:var(--button-bg);}
+
+        .db-loading{
+            display:flex;gap:12px;align-items:center;
+            padding:14px;border-radius:18px;
+            border:1px solid var(--panel-border);
+            background:var(--panel-bg);
+            box-shadow:var(--panel-shadow);
+        }
+        .db-spinner{
+            width:18px;height:18px;border-radius:999px;
+            border:3px solid var(--border-color);
+            border-top-color:var(--text-muted);
+            animation:spin 0.9s linear infinite;
+        }
+        .db-grid{
+            display:grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap:12px;
+            align-items:start;
+        }
+        .db-left,.db-right{display:flex;flex-direction:column;gap:12px;}
+
+        .db-stats{
+            display:grid;
+            grid-template-columns:repeat(4, minmax(0,1fr));
+            gap:10px;
+        }
+        .db-stat{
+            border-radius:18px;
+            border:1px solid var(--panel-border);
+            background:var(--panel-bg);
+            box-shadow:var(--panel-shadow);
+            padding:12px;
+        }
+        .db-stat-top{display:flex;gap:10px;align-items:center;}
+        .db-stat-icon{font-size:18px;width:30px;height:30px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--chip-bg);border:1px solid var(--soft-border);}
+        .db-stat-title{font-size:12px;opacity:0.75;font-weight:900;}
+        .db-stat-number{font-size:24px;font-weight:900;margin-top:8px;letter-spacing:-0.4px;}
+        .db-stat-sub{font-size:12px;opacity:0.70;margin-top:2px;font-weight:800;}
+
+        .db-card{
+            border-radius:18px;
+            border:1px solid var(--panel-border);
+            background:var(--panel-bg);
+            box-shadow:var(--panel-shadow);
+            padding:14px;
+        }
+        .db-card-head{margin-bottom:10px;}
+        .db-card-title{font-weight:900;font-size:16px;}
+        .db-card-sub{opacity:0.75;font-size:13px;margin-top:2px;}
+
+        .db-moods{display:flex;flex-direction:column;gap:10px;}
+        .db-mood{
+            display:flex;justify-content:space-between;align-items:center;gap:10px;
+            padding:10px;border-radius:16px;border:1px solid var(--soft-border);
+            background:var(--soft-bg);
+        }
+        .db-mood-left{display:flex;gap:10px;align-items:center;}
+        .db-mood-emoji{font-size:18px;width:34px;height:34px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--chip-bg);border:1px solid var(--soft-border);}
+        .db-mood-name{font-weight:900;}
+        .db-mood-count{opacity:0.7;font-size:12px;margin-top:2px;font-weight:800;}
+
+        .db-mood-right{min-width:160px;text-align:right;}
+        .db-mood-pct{font-weight:900;}
+        .db-bar{height:8px;border-radius:999px;background:var(--bar-track);margin-top:6px;overflow:hidden;}
+        .db-bar-fill{height:100%;border-radius:999px;}
+        .db-bar-fill.positive{background:rgba(34,197,94,0.85);}
+        .db-bar-fill.neutral{background:rgba(59,130,246,0.85);}
+        .db-bar-fill.negative{background:rgba(239,68,68,0.85);}
+
+        .db-highlight{
+            display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+            padding:12px;border-radius:16px;border:1px solid var(--soft-border);
+            background:var(--soft-bg);
+        }
+        .db-highlight-left{display:flex;gap:10px;align-items:center;}
+        .db-highlight-emoji{width:36px;height:36px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--chip-bg);border:1px solid var(--soft-border);}
+        .db-highlight-title{font-weight:900;font-size:16px;}
+        .db-highlight-sub{opacity:0.7;font-size:12px;margin-top:2px;font-weight:800;}
+
+        .db-tags{display:flex;flex-wrap:wrap;gap:8px;}
+        .db-tag{
+            display:inline-flex;align-items:center;gap:8px;
+            padding:8px 10px;border-radius:999px;
+            border:1px solid var(--panel-border);
+            background:var(--chip-bg);
+            font-weight:900;font-size:12px;
+        }
+        .db-tag-count{
+            padding:4px 8px;border-radius:999px;
+            background:var(--bar-track);
+            font-size:12px;font-weight:900;
+        }
+
+        .db-recent{display:flex;flex-direction:column;gap:10px;}
+        .db-entry{
+            width:100%;
+            text-align:left;
+            display:flex;justify-content:space-between;align-items:center;gap:10px;
+            padding:12px;border-radius:16px;
+            border:1px solid var(--panel-border);
+            background:var(--panel-bg);
+            cursor:pointer;
+        }
+        .db-entry:hover{background:var(--hover-bg);}
+        .db-entry-title{font-weight:900;}
+        .db-entry-meta{opacity:0.75;font-size:12px;margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;font-weight:800;}
+        .db-entry-arrow{font-size:18px;font-weight:900;opacity:0.6;}
+
+        .db-empty{text-align:center;padding:18px 10px;}
+        .db-empty-emoji{font-size:40px;}
+        .db-empty-title{font-weight:900;font-size:16px;margin-top:8px;}
+        .db-empty-sub{opacity:0.75;font-size:13px;margin-top:4px;margin-bottom:12px;}
+
+        .db-links{display:grid;grid-template-columns:1fr;gap:10px;}
+        .db-link{
+            height:40px;border-radius:14px;
+            border:1px solid var(--panel-border);
+            background:var(--soft-bg);
+            font-weight:900;cursor:pointer;
+            text-align:left;padding:0 12px;
+        }
+        .db-link:hover{background:var(--hover-bg);}
+    </style>
+</div>
+
+@code {
+    private void GoCreate() => Navigation.NavigateTo("/create-entry");
+    private void GoCalendar() => Navigation.NavigateTo("/calendar");
+    private void GoEntries() => Navigation.NavigateTo("/entries");
+    private void GoAnalytics() => Navigation.NavigateTo("/analytics");
+    private void GoSettings() => Navigation.NavigateTo("/settings");
+}

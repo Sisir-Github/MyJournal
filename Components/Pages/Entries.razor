@@ -1,0 +1,433 @@
+@page "/entries"
+@using JournalApp.Services
+@using JournalApp.Models
+@inject JournalService JournalService
+@inject NavigationManager Navigation
+
+<PageTitle>My Entries - Journal App</PageTitle>
+
+<div class="en-wrap">
+    <!-- Top header -->
+    <div class="en-top">
+        <div class="en-titleblock">
+            <div class="en-badge">ENTRIES</div>
+            <h1 class="en-title">📔 My Journal Entries</h1>
+            <div class="en-sub">Search, filter, and open your entries fast.</div>
+        </div>
+
+        <div class="en-top-actions">
+            <button type="button" class="en-btn primary" @onclick="GoCreate">✍️ New Entry</button>
+            <button type="button" class="en-btn" @onclick="GoCalendar">📅 Calendar</button>
+        </div>
+    </div>
+
+    <!-- Search bar -->
+    <div class="en-searchbar">
+        <div class="en-searchbox">
+            <span class="en-searchicon">🔎</span>
+            <input type="text"
+                   class="en-input"
+                   @bind="searchTerm"
+                   @bind:event="oninput"
+                   placeholder="Search by title or content..." />
+        </div>
+        <button class="en-btn primary" @onclick="SearchEntries">Search</button>
+        <button class="en-btn" @onclick="ClearFilters">Reset</button>
+    </div>
+
+    <div class="en-layout">
+        <!-- Filters panel -->
+        <div class="en-filters">
+            <div class="en-card en-sticky">
+                <div class="en-card-head">
+                    <div class="en-card-title">Filters</div>
+                    <div class="en-card-sub">Narrow results quickly</div>
+                </div>
+
+                <!-- Date range -->
+                <div class="en-filter">
+                    <div class="en-label">Date Range</div>
+                    <div class="en-row">
+                        <input type="date" class="en-input" @bind="filterStartDate" />
+                        <span class="en-to">to</span>
+                        <input type="date" class="en-input" @bind="filterEndDate" />
+                    </div>
+                    <button class="en-btn full" @onclick="ApplyDateFilter">Apply Date Filter</button>
+                </div>
+
+                <!-- Mood -->
+                <div class="en-filter">
+                    <div class="en-label">Mood</div>
+                    <select class="en-input" @bind="selectedMood">
+                        <option value="">-- All Moods --</option>
+                        @foreach (var mood in MoodDefinitions.GetAllMoods())
+                        {
+                            <option value="@mood">@mood</option>
+                        }
+                    </select>
+                    <button class="en-btn full" @onclick="ApplyMoodFilter">Apply Mood Filter</button>
+                </div>
+
+                <!-- Tag -->
+                <div class="en-filter">
+                    <div class="en-label">Tag</div>
+                    <select class="en-input" @bind="selectedTag">
+                        <option value="">-- All Tags --</option>
+                        @foreach (var tag in TagDefinitions.GetAllPreBuiltTags())
+                        {
+                            <option value="@tag">@tag</option>
+                        }
+                    </select>
+                    <button class="en-btn full" @onclick="ApplyTagFilter">Apply Tag Filter</button>
+                </div>
+
+                <div class="en-divider"></div>
+
+                <button class="en-btn warn full" @onclick="ClearFilters">Clear All Filters</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="en-results">
+            <div class="en-card">
+                <div class="en-card-head">
+                    <div class="en-card-title">Results</div>
+                    <div class="en-card-sub">
+                        @if (isLoading)
+                        {
+                            <span>Loading…</span>
+                        }
+                        else
+                        {
+                            <span>@entries.Count entry(ies) shown</span>
+                        }
+                    </div>
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="en-loading">
+                        <div class="en-spinner"></div>
+                        <div>
+                            <div class="en-loading-title">Loading entries</div>
+                            <div class="en-loading-sub">Please wait…</div>
+                        </div>
+                    </div>
+                }
+                else if (entries.Any())
+                {
+                    <div class="en-list">
+                        @foreach (var entry in entries)
+                        {
+                            <button type="button" class="en-entry" @onclick="() => ViewEntry(entry.Id)">
+                                <div class="en-entry-top">
+                                    <div class="en-entry-title">@entry.Title</div>
+                                    <div class="en-entry-date">📅 @entry.EntryDate.ToString("MMM dd, yyyy")</div>
+                                </div>
+
+                                <div class="en-moods">
+                                    <span class="en-mood @GetMoodClass(entry.PrimaryMoodCategory)">
+                                        @GetMoodEmoji(entry.PrimaryMoodCategory) @entry.PrimaryMood
+                                    </span>
+
+                                    @if (!string.IsNullOrEmpty(entry.SecondaryMood1))
+                                    {
+                                        <span class="en-mood secondary">@entry.SecondaryMood1</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(entry.SecondaryMood2))
+                                    {
+                                        <span class="en-mood secondary">@entry.SecondaryMood2</span>
+                                    }
+                                </div>
+
+                                <div class="en-preview">@GetPreview(entry.Content)</div>
+
+                                @if (!string.IsNullOrEmpty(entry.Tags))
+                                {
+                                    <div class="en-tags">
+                                        @foreach (var tag in entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                        {
+                                            <span class="en-tag">@tag.Trim()</span>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="en-entry-foot">
+                                    <span>📝 @entry.WordCount words</span>
+                                    <span>🕒 Updated: @entry.UpdatedAt.ToString("g")</span>
+                                </div>
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="en-pagination">
+                        <button class="en-btn"
+                                @onclick="PreviousPage"
+                                disabled="@(currentPage == 1)">
+                            ◀ Previous
+                        </button>
+
+                        <div class="en-pageinfo">
+                            Page <b>@currentPage</b> of <b>@totalPages</b>
+                        </div>
+
+                        <button class="en-btn"
+                                @onclick="NextPage"
+                                disabled="@(currentPage >= totalPages)">
+                            Next ▶
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="en-empty">
+                        <div class="en-empty-emoji">🗒️</div>
+                        <div class="en-empty-title">No entries found</div>
+                        <div class="en-empty-sub">Try clearing filters or create a new entry.</div>
+                        <button class="en-btn primary" @onclick="GoCreate">✍️ Create Entry</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .en-wrap{
+            padding:16px;
+            max-width:1200px;
+            margin:0 auto;
+            font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+        }
+
+        .en-top{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-bottom:12px;
+        }
+
+        .en-badge{
+            display:inline-block;
+            padding:6px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:900;
+            letter-spacing:0.6px;
+            background:var(--chip-bg);
+            border:1px solid var(--panel-border);
+            margin-bottom:8px;
+        }
+
+        .en-title{margin:0;font-size:28px;font-weight:900;letter-spacing:-0.6px;}
+        .en-sub{opacity:0.75;font-size:13px;margin-top:6px;font-weight:700;}
+
+        .en-top-actions{display:flex;gap:10px;flex-wrap:wrap;}
+
+        .en-searchbar{
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            align-items:center;
+            margin-bottom:12px;
+        }
+        .en-searchbox{
+            flex:1;
+            min-width:240px;
+            display:flex;
+            align-items:center;
+            gap:8px;
+            padding:0 12px;
+            height:42px;
+            border-radius:14px;
+            border:1px solid var(--input-border-soft);
+            background:var(--panel-bg);
+            box-shadow:var(--panel-shadow);
+        }
+        .en-searchicon{opacity:0.7;}
+        .en-input{
+            width:100%;
+            height:40px;
+            border-radius:12px;
+            border:1px solid var(--input-border-soft);
+            background:var(--input-bg-soft);
+            padding:0 12px;
+            outline:none;
+            font-weight:700;
+            color:var(--text-color);
+        }
+        .en-searchbox .en-input{
+            height:38px;
+            border:none;
+            background:transparent;
+            padding:0;
+        }
+
+        .en-layout{
+            display:grid;
+            grid-template-columns: 360px 1fr;
+            gap:12px;
+            align-items:start;
+        }
+
+        .en-card{
+            border-radius:18px;
+            border:1px solid var(--panel-border);
+            background:var(--panel-bg);
+            box-shadow:var(--panel-shadow);
+            padding:14px;
+        }
+        .en-card-head{margin-bottom:10px;}
+        .en-card-title{font-weight:900;font-size:16px;}
+        .en-card-sub{opacity:0.75;font-size:13px;margin-top:2px;font-weight:700;}
+
+        .en-sticky{position:sticky;top:12px;}
+        .en-filter{margin-top:12px;}
+        .en-label{font-size:12px;opacity:0.75;font-weight:900;margin-bottom:6px;}
+        .en-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+        .en-to{opacity:0.6;font-weight:900;}
+
+        .en-divider{height:1px;background:var(--border-color);margin:14px 0;}
+
+        .en-btn{
+            height:38px;
+            padding:0 14px;
+            border-radius:12px;
+            border:1px solid var(--panel-border);
+            background:var(--chip-bg);
+            font-weight:900;
+            cursor:pointer;
+            color:var(--text-color);
+        }
+        .en-btn.primary{background:var(--button-bg);color:var(--button-text);border-color:var(--button-bg);}
+        .en-btn.warn{background:rgba(245,158,11,0.18);border-color:rgba(245,158,11,0.35);}
+        .en-btn.full{width:100%;margin-top:10px;}
+
+        .en-loading{
+            display:flex;gap:12px;align-items:center;
+            padding:14px;border-radius:16px;border:1px solid var(--soft-border);
+            background:var(--soft-bg);
+        }
+        .en-spinner{
+            width:18px;height:18px;border-radius:999px;
+            border:3px solid var(--border-color);
+            border-top-color:var(--text-muted);
+            animation:spin 0.9s linear infinite;
+        }
+        .en-loading-title{font-weight:900;}
+        .en-loading-sub{opacity:0.75;font-size:13px;margin-top:2px;font-weight:700;}
+
+        .en-list{display:flex;flex-direction:column;gap:10px;}
+
+        .en-entry{
+            width:100%;
+            text-align:left;
+            cursor:pointer;
+            border-radius:18px;
+            border:1px solid var(--panel-border);
+            background:var(--panel-bg);
+            padding:12px;
+        }
+        .en-entry:hover{background:var(--hover-bg);}
+
+        .en-entry-top{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:10px;
+            flex-wrap:wrap;
+        }
+        .en-entry-title{font-weight:900;font-size:15px;}
+        .en-entry-date{opacity:0.75;font-size:12px;font-weight:800;}
+
+        .en-moods{
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-top:10px;
+        }
+        .en-mood{
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            padding:7px 10px;
+            border-radius:999px;
+            border:1px solid var(--panel-border);
+            background:var(--chip-bg);
+            font-size:12px;
+            font-weight:900;
+        }
+        .en-mood.secondary{
+            opacity:0.85;
+        }
+
+        /* These depend on your GetMoodClass returning values; they are safe even if it returns other strings */
+        .mood-positive{background:rgba(34,197,94,0.16);border-color:rgba(34,197,94,0.35);}
+        .mood-neutral{background:rgba(59,130,246,0.16);border-color:rgba(59,130,246,0.35);}
+        .mood-negative{background:rgba(239,68,68,0.14);border-color:rgba(239,68,68,0.30);}
+
+        .en-preview{
+            margin-top:10px;
+            opacity:0.85;
+            font-size:13px;
+            line-height:1.45;
+            font-weight:650;
+        }
+
+        .en-tags{
+            display:flex;
+            flex-wrap:wrap;
+            gap:8px;
+            margin-top:10px;
+        }
+        .en-tag{
+            display:inline-flex;
+            align-items:center;
+            padding:6px 10px;
+            border-radius:999px;
+            border:1px solid var(--panel-border);
+            background:var(--chip-bg);
+            font-size:12px;
+            font-weight:900;
+        }
+
+        .en-entry-foot{
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            flex-wrap:wrap;
+            margin-top:12px;
+            opacity:0.75;
+            font-size:12px;
+            font-weight:800;
+        }
+
+        .en-pagination{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px;
+            flex-wrap:wrap;
+            margin-top:14px;
+            padding-top:12px;
+            border-top:1px solid var(--border-color);
+        }
+        .en-pageinfo{opacity:0.85;font-weight:800;}
+
+        .en-empty{
+            text-align:center;
+            padding:18px 10px;
+        }
+        .en-empty-emoji{font-size:40px;}
+        .en-empty-title{font-weight:900;font-size:16px;margin-top:8px;}
+        .en-empty-sub{opacity:0.75;font-size:13px;margin-top:4px;margin-bottom:12px;font-weight:700;}
+
+    </style>
+</div>
+
+@code {
+    private void GoCreate() => Navigation.NavigateTo("/create-entry");
+    private void GoCalendar() => Navigation.NavigateTo("/calendar");
+}

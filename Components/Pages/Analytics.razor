@@ -1,0 +1,343 @@
+@page "/analytics"
+@using System.Globalization
+@using System.Collections
+@using System.Collections.Generic
+
+<div style="padding:16px;max-width:1100px;margin:0 auto;color:var(--text-color);">
+
+    <!-- Header -->
+    <div style="display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px;">
+        <div>
+            <h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.5px;">Analytics</h2>
+            <p style="margin:6px 0 0;opacity:0.75;">Insights from your journal entries</p>
+        </div>
+
+        <!-- Filters -->
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+                <label style="display:block;font-size:12px;opacity:0.75;margin-bottom:6px;">Start</label>
+                <input type="date"
+                       style="height:38px;padding:0 10px;border-radius:10px;border:1px solid var(--input-border-soft);background:var(--input-bg-soft);color:var(--text-color);outline:none;min-width:160px;"
+                       value="@ToDateValue(startDate)"
+                       @onchange="OnStartDateChanged" />
+            </div>
+
+            <div>
+                <label style="display:block;font-size:12px;opacity:0.75;margin-bottom:6px;">End</label>
+                <input type="date"
+                       style="height:38px;padding:0 10px;border-radius:10px;border:1px solid var(--input-border-soft);background:var(--input-bg-soft);color:var(--text-color);outline:none;min-width:160px;"
+                       value="@ToDateValue(endDate)"
+                       @onchange="OnEndDateChanged" />
+            </div>
+
+            <button @onclick="LoadAnalyticsAsync"
+                    disabled="@isLoading"
+                    style="height:38px;padding:0 14px;border-radius:10px;border:0;cursor:pointer;font-weight:700;background:var(--button-bg);color:var(--button-text);display:inline-flex;align-items:center;gap:10px;opacity:@(isLoading ? "0.75" : "1");">
+                @if (isLoading)
+                {
+                    <span style="width:16px;height:16px;border-radius:999px;border:2px solid rgba(255,255,255,0.35);border-top-color:rgba(255,255,255,1);display:inline-block;animation:anspin 0.9s linear infinite;"></span>
+                    <span>Loading</span>
+                }
+                else
+                {
+                    <span>Apply</span>
+                }
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <!-- Loading Skeletons -->
+        <div class="_grid4" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px;">
+            @for (int i = 0; i < 4; i++)
+            {
+                <div style="height:110px;border-radius:16px;border:1px solid var(--panel-border);
+                            background:linear-gradient(90deg, var(--skeleton-a), var(--skeleton-b), var(--skeleton-a));
+                            background-size:200% 100%;animation:anshine 1.2s ease-in-out infinite;"></div>
+            }
+        </div>
+
+        <div style="height:180px;border-radius:16px;border:1px solid var(--panel-border);
+                    background:linear-gradient(90deg, var(--skeleton-a), var(--skeleton-b), var(--skeleton-a));
+                    background-size:200% 100%;animation:anshine 1.2s ease-in-out infinite;"></div>
+
+        <div style="height:180px;margin-top:12px;border-radius:16px;border:1px solid var(--panel-border);
+                    background:linear-gradient(90deg, var(--skeleton-a), var(--skeleton-b), var(--skeleton-a));
+                    background-size:200% 100%;animation:anshine 1.2s ease-in-out infinite;"></div>
+    }
+    else if (analytics == null)
+    {
+        <!-- Empty -->
+        <div style="text-align:center;padding:34px 16px;">
+            <div style="font-size:42px;margin-bottom:10px;">📊</div>
+            <h3 style="margin:0;font-size:20px;font-weight:900;">No analytics available</h3>
+            <p style="margin:8px 0 16px;opacity:0.7;">Try widening the date range or add some entries first.</p>
+            <button @onclick="LoadAnalyticsAsync"
+                    style="height:38px;padding:0 14px;border-radius:10px;border:0;cursor:pointer;font-weight:700;background:var(--chip-bg);color:var(--text-color);">
+                Refresh
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Read metrics safely (no compile errors even if names differ) -->
+        var totalEntries = GetNumber(analytics, "TotalEntries", "EntriesCount", "EntryCount");
+        var totalWords = GetNumber(analytics, "TotalWords", "WordsCount", "WordCount");
+        var currentStreak = GetNumber(analytics, "CurrentStreak", "Streak", "StreakDays");
+        var avgPerDay = GetDouble(analytics, "AverageEntriesPerDay", "AvgEntriesPerDay", "AveragePerDay", "EntriesPerDay");
+
+        <!-- Top Stats -->
+        <div class="_grid4" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px;">
+            @MetricCard("Entries", totalEntries, "Total entries in selected range")
+            @MetricCard("Words", totalWords, "Total words written")
+            @MetricCard("Streak", currentStreak, "Current streak (days)")
+            @MetricCard("Avg / Day", avgPerDay.ToString("0.0", CultureInfo.InvariantCulture), "Average entries per day")
+        </div>
+
+        <!-- Panels -->
+        <div class="_panels" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+            <!-- Mood Breakdown -->
+            <section style="border-radius:16px;border:1px solid var(--panel-border);background:var(--panel-bg);padding:14px;box-shadow:var(--panel-shadow);">
+                <div>
+                    <h3 style="margin:0;font-size:18px;font-weight:900;">Mood breakdown</h3>
+                    <p style="margin:6px 0 0;opacity:0.7;font-size:13px;">Most common primary moods</p>
+                </div>
+
+                @{
+                    var moods = GetStringIntMap(analytics, "MoodCounts", "MoodCount", "Moods", "PrimaryMoodCounts");
+                }
+
+                @if (moods.Count == 0)
+                {
+                    <div style="margin-top:12px;opacity:0.7;font-size:13px;">No mood data found.</div>
+                }
+                else
+                {
+                    var max = moods.Values.Count > 0 ? moods.Values.Max() : 0;
+
+                    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+                        @foreach (var item in moods.OrderByDescending(x => x.Value))
+                        {
+                            var pct = (max <= 0) ? 0 : (item.Value * 100.0 / max);
+
+                            <div class="_row2" style="display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:center;">
+                                <div>
+                                    <div style="font-weight:800;">@item.Key</div>
+                                    <div style="font-size:12px;opacity:0.7;margin-top:2px;">@item.Value entry(s)</div>
+                                </div>
+
+                                <div style="height:10px;border-radius:999px;background:var(--bar-track);overflow:hidden;">
+                                    <div style="height:100%;border-radius:999px;background:var(--bar-fill);width:@pct%;"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <!-- Category Breakdown -->
+            <section style="border-radius:16px;border:1px solid var(--panel-border);background:var(--panel-bg);padding:14px;box-shadow:var(--panel-shadow);">
+                <div>
+                    <h3 style="margin:0;font-size:18px;font-weight:900;">Category breakdown</h3>
+                    <p style="margin:6px 0 0;opacity:0.7;font-size:13px;">Where your writing is focused</p>
+                </div>
+
+                @{
+                    var cats = GetStringIntMap(analytics, "CategoryCounts", "CategoryCount", "Categories", "EntryCategoryCounts");
+                }
+
+                @if (cats.Count == 0)
+                {
+                    <div style="margin-top:12px;opacity:0.7;font-size:13px;">No category data found.</div>
+                }
+                else
+                {
+                    var max = cats.Values.Count > 0 ? cats.Values.Max() : 0;
+
+                    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+                        @foreach (var item in cats.OrderByDescending(x => x.Value))
+                        {
+                            var pct = (max <= 0) ? 0 : (item.Value * 100.0 / max);
+
+                            <div class="_row2" style="display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:center;">
+                                <div>
+                                    <div style="font-weight:800;">@item.Key</div>
+                                    <div style="font-size:12px;opacity:0.7;margin-top:2px;">@item.Value entry(s)</div>
+                                </div>
+
+                                <div style="height:10px;border-radius:999px;background:var(--bar-track);overflow:hidden;">
+                                    <div style="height:100%;border-radius:999px;background:var(--bar-fill);width:@pct%;"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <!-- Tags (full width) -->
+            <section style="grid-column:1 / -1;border-radius:16px;border:1px solid var(--panel-border);background:var(--panel-bg);padding:14px;box-shadow:var(--panel-shadow);">
+                <div>
+                    <h3 style="margin:0;font-size:18px;font-weight:900;">Top tags</h3>
+                    <p style="margin:6px 0 0;opacity:0.7;font-size:13px;">Your most used tags</p>
+                </div>
+
+                @{
+                    var tags = GetStringList(analytics, "TopTags", "Tags", "MostUsedTags");
+                }
+
+                @if (tags.Count == 0)
+                {
+                    <div style="margin-top:12px;opacity:0.7;font-size:13px;">No tag data found.</div>
+                }
+                else
+                {
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+                        @foreach (var tag in tags)
+                        {
+                            <span style="font-size:13px;font-weight:800;padding:8px 10px;border-radius:999px;background:var(--chip-bg);">#@tag</span>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    // ====== Date helpers (safe) ======
+    private string ToDateValue(DateTime? dt) => dt.HasValue ? dt.Value.ToString("yyyy-MM-dd") : "";
+
+    private void OnStartDateChanged(ChangeEventArgs e)
+    {
+        var s = e?.Value?.ToString();
+        if (DateTime.TryParse(s, out var d)) startDate = d;
+    }
+
+    private void OnEndDateChanged(ChangeEventArgs e)
+    {
+        var s = e?.Value?.ToString();
+        if (DateTime.TryParse(s, out var d)) endDate = d;
+    }
+
+    // ====== Reflection helpers to avoid compile-time errors ======
+    private static object? GetProp(object obj, string name)
+        => obj.GetType().GetProperty(name)?.GetValue(obj);
+
+    private static long GetNumber(object obj, params string[] names)
+    {
+        foreach (var n in names)
+        {
+            var v = GetProp(obj, n);
+            if (v == null) continue;
+
+            if (v is int i) return i;
+            if (v is long l) return l;
+            if (v is short s) return s;
+            if (v is byte b) return b;
+
+            if (long.TryParse(Convert.ToString(v, CultureInfo.InvariantCulture), out var parsed))
+                return parsed;
+        }
+        return 0;
+    }
+
+    private static double GetDouble(object obj, params string[] names)
+    {
+        foreach (var n in names)
+        {
+            var v = GetProp(obj, n);
+            if (v == null) continue;
+
+            if (v is double d) return d;
+            if (v is float f) return f;
+            if (v is decimal m) return (double)m;
+
+            if (double.TryParse(Convert.ToString(v, CultureInfo.InvariantCulture), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed))
+                return parsed;
+        }
+        return 0.0;
+    }
+
+    private static Dictionary<string, int> GetStringIntMap(object obj, params string[] names)
+    {
+        foreach (var n in names)
+        {
+            var v = GetProp(obj, n);
+            if (v == null) continue;
+
+            // If it's already Dictionary<string,int>
+            if (v is Dictionary<string, int> dsi) return dsi;
+
+            // If it's IDictionary (maybe Dictionary<string,long> etc.)
+            if (v is IDictionary dict)
+            {
+                var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (DictionaryEntry de in dict)
+                {
+                    var key = Convert.ToString(de.Key) ?? "";
+                    if (string.IsNullOrWhiteSpace(key)) continue;
+
+                    var valStr = Convert.ToString(de.Value, CultureInfo.InvariantCulture);
+                    if (int.TryParse(valStr, out var iv)) result[key] = iv;
+                    else if (long.TryParse(valStr, out var lv)) result[key] = (int)Math.Min(int.MaxValue, lv);
+                    else result[key] = 0;
+                }
+                return result;
+            }
+        }
+        return new Dictionary<string, int>();
+    }
+
+    private static List<string> GetStringList(object obj, params string[] names)
+    {
+        foreach (var n in names)
+        {
+            var v = GetProp(obj, n);
+            if (v == null) continue;
+
+            if (v is List<string> ls) return ls;
+
+            if (v is IEnumerable enumerable)
+            {
+                var result = new List<string>();
+                foreach (var item in enumerable)
+                {
+                    var s = Convert.ToString(item);
+                    if (!string.IsNullOrWhiteSpace(s)) result.Add(s);
+                }
+                return result;
+            }
+        }
+        return new List<string>();
+    }
+
+    // ====== Small UI helper ======
+    private RenderFragment MetricCard(string title, object value, string subtitle) => __builder =>
+    {
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "style", "border-radius:16px;border:1px solid var(--panel-border);background:var(--panel-bg);padding:14px;box-shadow:var(--panel-shadow);");
+
+        __builder.OpenElement(2, "div");
+        __builder.AddAttribute(3, "style", "display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;");
+
+        __builder.OpenElement(4, "span");
+        __builder.AddAttribute(5, "style", "font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:var(--chip-bg);");
+        __builder.AddContent(6, title);
+        __builder.CloseElement(); // span
+        __builder.CloseElement(); // head
+
+        __builder.OpenElement(7, "div");
+        __builder.AddAttribute(8, "style", "font-size:34px;font-weight:900;letter-spacing:-0.5px;");
+        __builder.AddContent(9, value?.ToString());
+        __builder.CloseElement(); // metric
+
+        __builder.OpenElement(10, "div");
+        __builder.AddAttribute(11, "style", "opacity:0.7;font-size:13px;");
+        __builder.AddContent(12, subtitle);
+        __builder.CloseElement(); // subtitle
+
+        __builder.CloseElement(); // card
+    };
+}
