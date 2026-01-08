@@ -1,1 +1,0 @@
--v --force --timestamp=none --sign - --entitlements /Users/sisir/Downloads/Dot-Net-Coursework/JournalApp/obj/Debug/net9.0-maccatalyst/maccatalyst-arm64/Entitlements.xcent /Users/sisir/Downloads/Dot-Net-Coursework/JournalApp/bin/Debug/net9.0-maccatalyst/maccatalyst-arm64/JournalApp.app
