@@ -1,0 +1,13 @@
+@using MyJournal.Components
+
+<ErrorBoundary>
+    <ChildContent>
+        <Routes />
+    </ChildContent>
+    <ErrorContent Context="ex">
+        <div class="ui-error">
+            <div class="ui-error-title">UI Error</div>
+            <pre class="ui-error-pre">@ex.ToString()</pre>
+        </div>
+    </ErrorContent>
+</ErrorBoundary>

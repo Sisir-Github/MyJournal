@@ -1,0 +1,139 @@
+@page "/entry/{EntryId:int}"
+@using MyJournal.Models
+@using MyJournal.Services
+@using Microsoft.AspNetCore.Components
+@inject JournalService JournalService
+@inject NavigationManager Navigation
+
+<PageTitle>Entry - MyJournal</PageTitle>
+
+@if (isLoading)
+{
+    <div class="ed-wrap">Loading entry...</div>
+}
+else if (entry == null)
+{
+    <div class="ed-wrap">
+        <div class="ed-empty">
+            <div class="ed-empty-emoji">🗒️</div>
+            <div class="ed-empty-title">Entry not found</div>
+            <button class="ed-btn primary" @onclick="GoEntries">Back to Entries</button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="ed-wrap">
+        <div class="ed-top">
+            <div>
+                <div class="ed-title">@entry.Title</div>
+                <div class="ed-sub">📅 @entry.EntryDate.ToString("MMMM dd, yyyy")</div>
+            </div>
+            <div class="ed-actions">
+                <button class="ed-btn" @onclick="GoEntries">← Entries</button>
+                <button class="ed-btn primary" @onclick="GoEdit">✏️ Edit</button>
+            </div>
+        </div>
+
+        <div class="ed-meta">
+            <span class="ed-chip">📁 @GetCategoryLabel(entry.Category)</span>
+            <span class="ed-chip">🕒 Updated: @entry.UpdatedAt.ToString("g")</span>
+            <span class="ed-chip">🧾 Created: @entry.CreatedAt.ToString("g")</span>
+            <span class="ed-chip">📝 @entry.WordCount words</span>
+        </div>
+
+        <div class="ed-moods">
+            <span class="ed-chip">@GetMoodEmoji(entry.PrimaryMoodCategory) @entry.PrimaryMood</span>
+            @if (!string.IsNullOrEmpty(entry.SecondaryMood1))
+            {
+                <span class="ed-chip">@entry.SecondaryMood1</span>
+            }
+            @if (!string.IsNullOrEmpty(entry.SecondaryMood2))
+            {
+                <span class="ed-chip">@entry.SecondaryMood2</span>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(entry.Tags))
+        {
+            <div class="ed-tags">
+                @foreach (var tag in entry.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <span class="ed-tag">@tag.Trim()</span>
+                }
+            </div>
+        }
+
+        <div class="ed-content">
+            @GetContentHtml()
+        </div>
+    </div>
+}
+
+<style>
+    .ed-wrap{padding:16px;max-width:1000px;margin:0 auto;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    .ed-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+    .ed-title{font-size:28px;font-weight:900;letter-spacing:-0.6px;}
+    .ed-sub{opacity:0.75;margin-top:6px;font-size:13px;font-weight:800;}
+    .ed-actions{display:flex;gap:10px;flex-wrap:wrap;}
+    .ed-btn{height:38px;padding:0 14px;border-radius:12px;border:1px solid var(--panel-border);background:var(--chip-bg);font-weight:900;cursor:pointer;color:var(--text-color);}
+    .ed-btn.primary{background:var(--button-bg);color:var(--button-text);border-color:var(--button-bg);}
+
+    .ed-meta,.ed-moods{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+    .ed-chip{padding:7px 10px;border-radius:999px;border:1px solid var(--panel-border);background:var(--chip-bg);font-size:12px;font-weight:900;}
+    .ed-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+    .ed-tag{padding:7px 10px;border-radius:999px;border:1px solid var(--panel-border);background:var(--soft-bg);font-size:12px;font-weight:900;}
+
+    .ed-content{margin-top:14px;border-radius:16px;border:1px solid var(--panel-border);background:var(--panel-bg);padding:14px;line-height:1.6;box-shadow:var(--panel-shadow);}
+    .ed-content h1,.ed-content h2,.ed-content h3{margin:10px 0;}
+    .ed-content ul{margin:8px 0 8px 20px;}
+    .ed-content a{color:var(--button-bg);font-weight:800;text-decoration:none;}
+
+    .ed-empty{text-align:center;padding:20px;}
+    .ed-empty-emoji{font-size:44px;}
+    .ed-empty-title{font-size:18px;font-weight:900;margin:10px 0 12px;}
+</style>
+
+@code {
+    [Parameter] public int EntryId { get; set; }
+
+    private JournalEntry? entry;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        entry = await JournalService.GetEntryByIdAsync(EntryId);
+        isLoading = false;
+    }
+
+    private void GoEntries() => Navigation.NavigateTo("/entries");
+    private void GoEdit() => Navigation.NavigateTo($"/edit-entry/{EntryId}");
+
+    private string GetMoodEmoji(MoodCategory category)
+    {
+        return category switch
+        {
+            MoodCategory.Positive => "😊",
+            MoodCategory.Neutral => "😐",
+            MoodCategory.Negative => "😔",
+            _ => "😐"
+        };
+    }
+
+    private string GetCategoryLabel(string? category)
+    {
+        return string.IsNullOrWhiteSpace(category) ? "General" : category;
+    }
+
+    private MarkupString GetContentHtml()
+    {
+        try
+        {
+            return (MarkupString)MarkdownService.ToHtml(entry?.Content ?? string.Empty);
+        }
+        catch
+        {
+            return (MarkupString)MarkdownService.ToHtml(MarkdownService.ToPlainText(entry?.Content ?? string.Empty));
+        }
+    }
+}
