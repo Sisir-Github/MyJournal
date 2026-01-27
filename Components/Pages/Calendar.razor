@@ -19,12 +19,12 @@
         </div>
 
         <div class="cal-actions">
-            <button class="cal-btn ghost" @onclick="GoToday">Today</button>
+            <button class="cal-btn ghost" @onclick="GoToday" aria-label="Go to today" title="Go to today">Today</button>
 
             <div class="cal-month">
-                <button class="cal-btn ghost" @onclick="PreviousMonth" title="Previous month">‹</button>
+                <button class="cal-btn ghost" @onclick="PreviousMonth" title="Previous month" aria-label="Previous month">‹</button>
                 <div class="cal-month-text">@currentDate.ToString("MMMM yyyy")</div>
-                <button class="cal-btn ghost" @onclick="NextMonth" title="Next month">›</button>
+                <button class="cal-btn ghost" @onclick="NextMonth" title="Next month" aria-label="Next month">›</button>
             </div>
         </div>
     </div>
