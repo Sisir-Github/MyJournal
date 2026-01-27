@@ -68,10 +68,12 @@ namespace MyJournal.Services
         {
             // Count all moods (primary and secondary)
             var allMoods = new List<(string Mood, MoodCategory Category)>();
+            var primaryMoodCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in entries)
             {
                 allMoods.Add((entry.PrimaryMood, entry.PrimaryMoodCategory));
+                IncrementMoodCount(primaryMoodCounts, entry.PrimaryMood);
                 
                 if (!string.IsNullOrEmpty(entry.SecondaryMood1) && entry.SecondaryMood1Category.HasValue)
                 {
@@ -95,6 +97,10 @@ namespace MyJournal.Services
                 analytics.NeutralMoodPercentage = Math.Round((double)analytics.NeutralMoodCount / totalMoods * 100, 2);
                 analytics.NegativeMoodPercentage = Math.Round((double)analytics.NegativeMoodCount / totalMoods * 100, 2);
             }
+
+            analytics.MoodCounts = primaryMoodCounts
+                .OrderByDescending(kvp => kvp.Value)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
         }
 
         private void CalculateMostFrequentMood(List<JournalEntry> entries, AnalyticsData analytics)
@@ -233,6 +239,7 @@ namespace MyJournal.Services
             analytics.TagUsageCount = tagCounts
                 .OrderByDescending(kvp => kvp.Value)
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            analytics.TopTags = analytics.TagUsageCount.Keys.Take(10).ToList();
 
             // Tag percentages based on entries that include the tag
             var totalEntries = entries.Count;

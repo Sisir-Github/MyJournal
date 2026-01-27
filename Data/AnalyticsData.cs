@@ -15,6 +15,7 @@ namespace MyJournal.Data
         public double PositiveMoodPercentage { get; set; }
         public double NeutralMoodPercentage { get; set; }
         public double NegativeMoodPercentage { get; set; }
+        public Dictionary<string, int> MoodCounts { get; set; } = new();
 
         // Most Frequent Mood
         public string? MostFrequentMood { get; set; }
@@ -28,6 +29,7 @@ namespace MyJournal.Data
         // Tag Analytics
         public Dictionary<string, int> TagUsageCount { get; set; } = new();
         public Dictionary<string, double> TagPercentages { get; set; } = new();
+        public List<string> TopTags { get; set; } = new();
 
         // Category Analytics
         public Dictionary<string, int> CategoryCounts { get; set; } = new();
