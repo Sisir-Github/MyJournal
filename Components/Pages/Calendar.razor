@@ -47,16 +47,22 @@
 
                     string moodCategory = "";
                     string moodEmoji = "";
+                    JournalEntry? entryForDay = null;
 
                     if (hasEntry)
                     {
-                        var entry = entriesByDate[day.Date];
-                        moodCategory = entry.PrimaryMoodCategory.ToString();
+                        entryForDay = entriesByDate[day.Date];
+                        moodCategory = entryForDay.PrimaryMoodCategory.ToString();
                         moodEmoji = GetMoodEmoji(moodCategory);
                     }
 
+                    var dayLabel = day.ToString("D");
+                    var entryLabel = hasEntry ? $"Entry: {entryForDay!.Title}" : "No entry";
+                    var ariaLabel = $"{dayLabel}. {entryLabel}";
+
                     <button type="button"
                             class="@($"cal-cell {(isOtherMonth ? "other" : "")} {(isToday ? "today" : "")} {(isSelected ? "selected" : "")} {(hasEntry ? "has" : "")}")"
+                            aria-label="@ariaLabel"
                             @onclick="() => SelectDate(day)">
                         <div class="cal-cell-top">
                             <div class="cal-daynum">@day.Day</div>
@@ -71,8 +77,7 @@
 
                         @if (hasEntry)
                         {
-                            var entry = entriesByDate[day.Date];
-                            <div class="cal-mini-title">@entry.Title</div>
+                            <div class="cal-mini-title">@entryForDay!.Title</div>
                         }
                         else
                         {
