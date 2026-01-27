@@ -125,7 +125,10 @@
                         <div class="cal-panel-title">No entry for this date</div>
                         <div class="cal-panel-sub">Create one and start tracking your mood & thoughts.</div>
 
-                        <button class="cal-btn primary wide" @onclick="() => CreateEntryForDate(selectedDate.Value)">
+                        <button class="cal-btn primary wide"
+                                @onclick="() => CreateEntryForDate(selectedDate.Value)"
+                                aria-label="Create entry for selected date"
+                                title="Create entry for selected date">
                             ✍️ Create Entry
                         </button>
                     </div>
@@ -138,7 +141,10 @@
                                 <div class="cal-panel-title">@selectedEntry.Title</div>
                                 <div class="cal-panel-sub">Tap edit to update this entry.</div>
                             </div>
-                            <button class="cal-btn primary" @onclick="() => EditEntry(selectedEntry.Id)">✏️ Edit</button>
+                            <button class="cal-btn primary"
+                                    @onclick="() => EditEntry(selectedEntry.Id)"
+                                    aria-label="Edit selected entry"
+                                    title="Edit selected entry">✏️ Edit</button>
                         </div>
 
                         <div class="cal-category">📁 @GetCategoryLabel(selectedEntry.Category)</div>
